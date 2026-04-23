@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>jjktest.com | Shinjuku Showdown</title>
+  <style>
+    :root {
+      --bg-0: #0b0b13;
+      --bg-1: #171726;
+      --bg-2: #27273c;
+      --panel: rgba(17, 17, 30, 0.8);
+      --panel-strong: rgba(11, 11, 19, 0.92);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #f4f2ef;
+      --muted: #a9aac0;
+      --boss: #ff736d;
+      --player: #71f1d8;
+      --gold: #f0c56e;
+      --shadow: rgba(0, 0, 0, 0.42);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top, rgba(175, 62, 57, 0.15), transparent 44%),
+        linear-gradient(180deg, #1b1b29 0%, #06070b 100%);
+      color: var(--text);
+      font-family: "Lucida Sans Unicode", "Trebuchet MS", sans-serif;
+      overflow: hidden;
+    }
+    body {
+      display: grid;
+      place-items: center;
+    }
+    .shell {
+      position: relative;
+      width: min(100vw, calc(100vh * 16 / 9));
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 18%),
+        linear-gradient(135deg, rgba(64, 64, 98, 0.16), transparent 40%),
+        #080910;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 32px 80px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      background: transparent;
+    }
+    .screen,
+    .hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .screen {
+      display: none;
+      padding: 2.2rem;
+    }
+    .screen.active {
+      display: flex;
+    }
+    .panel {
+      pointer-events: auto;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 20%),
+        var(--panel);
+      border: 1px solid var(--line);
+      box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+    }
+    .menu-panel {
+      width: min(520px, 100%);
+      padding: 1.8rem 1.9rem 1.6rem;
+      align-self: center;
+    }
+    .eyebrow {
+      margin: 0 0 0.4rem;
+      color: var(--gold);
+      font-size: 0.8rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: "Copperplate", "Impact", fantasy;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: clamp(2.4rem, 4vw, 4rem);
+      line-height: 0.92;
+    }
+    .lead {
+      margin: 0.95rem 0 1.1rem;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 46ch;
+    }
+    .menu-actions,
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-top: 1.2rem;
+    }
+    button {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        rgba(17, 17, 29, 0.86);
+      color: var(--text);
+      padding: 0.82rem 1.15rem;
+      font: inherit;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+    button:hover,
+    button:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.28);
+      outline: none;
+    }
+    .primary {
+      background:
+        linear-gradient(180deg, rgba(113, 241, 216, 0.34), rgba(113, 241, 216, 0.12)),
+        rgba(18, 28, 29, 0.92);
+      border-color: rgba(113, 241, 216, 0.46);
+    }
+    .danger {
+      background:
+        linear-gradient(180deg, rgba(255, 115, 109, 0.36), rgba(255, 115, 109, 0.12)),
+        rgba(30, 17, 17, 0.92);
+      border-color: rgba(255, 115, 109, 0.45);
+    }
+    .menu-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.7rem;
+      margin-top: 1.25rem;
+    }
+    .stat-box {
+      padding: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .stat-box strong,
+    .card-stat strong {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    .stat-box span,
+    .card-stat span {
+      color: var(--text);
+      font-family: "Lucida Console", "Courier New", monospace;
+      font-size: 0.9rem;
+    }
+    .character-layout,
+    .result-layout {
+      width: 100%;
+      display: grid;
+      gap: 1.1rem;
+      align-content: start;
+    }
+    .character-layout {
+      grid-template-columns: 1.25fr 2fr;
+    }
+    .character-side {
+      padding: 1.5rem;
+      align-self: start;
+    }
+    .character-side p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .character-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      align-content: start;
+      pointer-events: auto;
+    }
+    .character-card {
+      text-align: left;
+      padding: 1rem;
+      min-height: 290px;
+      border-width: 1px;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.05), transparent 34%),
+        linear-gradient(180deg, rgba(9, 11, 18, 0.94), rgba(18, 20, 29, 0.9));
+    }
+    .character-card::before {
+      content: "";
+      position: absolute;
+      inset: auto -12% 58% 45%;
+      height: 160px;
+      background: radial-gradient(circle, var(--accent), transparent 68%);
+      opacity: 0.18;
+      transform: rotate(-14deg);
+      pointer-events: none;
+    }
+    .character-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .character-card .role {
+      color: var(--gold);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+    .character-card p {
+      color: var(--muted);
+      line-height: 1.46;
+      margin: 0 0 0.95rem;
+      max-width: 28ch;
+    }
+    .card-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+      margin-bottom: 0.95rem;
+    }
+    .card-stat {
+      padding: 0.6rem 0.65rem;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .card-move {
+      margin-top: auto;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .card-move strong {
+      color: var(--gold);
+    }
+    .character-actions {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+      pointer-events: auto;
+    }
+    .back-link {
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      background: none;
+      padding: 0;
+      border: none;
+    }
+    .hud {
+      display: none;
+      padding: 1rem 1.15rem;
+    }
+    .hud.visible {
+      display: block;
+    }
+    .top-bars {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      pointer-events: none;
+    }
+    .health-wrap {
+      padding: 0.75rem 0.9rem;
+      background: rgba(10, 10, 16, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+    }
+    .health-wrap.right {
+      text-align: right;
+    }
+    .health-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin-bottom: 0.55rem;
+      font-size: 0.88rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .health-wrap.right .health-meta {
+      flex-direction: row-reverse;
+    }
+    .bar-track {
+      position: relative;
+      height: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+        rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 100%;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent 55%),
+        linear-gradient(90deg, #71f1d8, #3ab9c9);
+      transition: width 110ms linear;
+    }
+    .bar-fill.boss {
+      inset: 0 0 0 auto;
+      background:
+        linear-gradient(270deg, rgba(255, 255, 255, 0.18), transparent 55%),
+        linear-gradient(90deg, #ff736d, #ffab74);
+    }
+    .battle-info {
+      position: absolute;
+      left: 1.15rem;
+      bottom: 1.1rem;
+      display: grid;
+      gap: 0.75rem;
+      max-width: 410px;
+      pointer-events: none;
+    }
+    .info-panel {
+      padding: 0.85rem 0.95rem;
+      background: rgba(8, 9, 14, 0.76);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .info-panel strong {
+      display: inline-block;
+      margin-right: 0.55rem;
+      color: var(--gold);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.74rem;
+    }
+    .info-panel span {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.9rem;
+    }
+    .status-banner {
+      position: absolute;
+      top: 6.1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 220px;
+      max-width: min(70vw, 600px);
+      padding: 0.65rem 1rem;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.82rem;
+      background: rgba(11, 11, 19, 0.86);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      opacity: 0;
+      transition: opacity 100ms linear;
+      pointer-events: none;
+    }
+    .status-banner.visible {
+      opacity: 1;
+    }
+    .result-layout {
+      grid-template-columns: 1.1fr 1fr;
+      align-self: center;
+    }
+    .result-panel {
+      padding: 1.6rem;
+    }
+    .result-copy {
+      color: var(--muted);
+      line-height: 1.58;
+      margin-top: 0.9rem;
+    }
+    .result-log {
+      display: grid;
+      gap: 0.8rem;
+      align-content: start;
+    }
+    .result-log .info-panel {
+      min-height: 92px;
+    }
+    .scanlines,
+    .frame-vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .scanlines {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.04) 0,
+          rgba(255, 255, 255, 0.04) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      opacity: 0.1;
+      mix-blend-mode: screen;
+    }
+    .frame-vignette {
+      background:
+        radial-gradient(circle at center, transparent 54%, rgba(0, 0, 0, 0.4) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.35));
+    }
+    .hotkey {
+      display: inline-block;
+      min-width: 2rem;
+      padding: 0.2rem 0.35rem;
+      margin-right: 0.3rem;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      text-align: center;
+      font-family: "Lucida Console", "Courier New", monospace;
+      font-size: 0.82rem;
+    }
+    @media (max-width: 980px) {
+      .screen {
+        padding: 1rem;
+      }
+      .character-layout,
+      .result-layout {
+        grid-template-columns: 1fr;
+      }
+      .menu-panel,
+      .character-side,
+      .result-panel {
+        width: 100%;
+      }
+      .top-bars {
+        grid-template-columns: 1fr;
+      }
+      .status-banner {
+        top: 8.75rem;
+      }
+      .battle-info {
+        right: 1rem;
+        max-width: unset;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <canvas id="gameCanvas" width="1280" height="720" aria-label="Shinjuku Showdown"></canvas>
+    <section class="screen active" id="mainMenu">
+      <div class="panel menu-panel">
+        <p class="eyebrow">Jujutsu Kaisen Arena Prototype</p>
+        <h1>Shinjuku<br>Showdown</h1>
+        <p class="lead">
+          Pick a canon sorcerer, enter the fight with Ryomen Sukuna, read the telegraphs, and bring him down before the King of Curses tears the arena apart.
+        </p>
+        <div class="menu-actions">
+          <button class="primary" id="startButton">Start Mission</button>
+          <button id="jumpSelectButton">Character Select</button>
+        </div>
+        <div class="menu-stats">
+          <div class="stat-box">
+            <strong>Current Boss</strong>
+            <span>Ryomen Sukuna</span>
+          </div>
+          <div class="stat-box">
+            <strong>Movement</strong>
+            <span>WASD Dodge Play</span>
+          </div>
+          <div class="stat-box">
+            <strong>Objective</strong>
+            <span>Break Sukuna</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="screen" id="characterSelect">
+      <div class="character-layout">
+        <div class="panel character-side">
+          <p class="eyebrow">Select Your Sorcerer</p>
+          <h2>Playable Roster</h2>
+          <p>
+            This first pass focuses on canon-inspired kits and core pacing, not polish. Each character keeps to manga-appropriate abilities, while Sukuna fights with slash pressure, Cleave traps, and a Furnace lane burst.
+          </p>
+          <p>
+            All fighters move with <span class="hotkey">W</span><span class="hotkey">A</span><span class="hotkey">S</span><span class="hotkey">D</span>,
+            use <span class="hotkey">J</span> for a basic strike, and fire their signature move with <span class="hotkey">K</span>.
+          </p>
+          <div class="character-actions">
+            <button class="back-link" id="backToMenu">Back To Menu</button>
+            <span class="eyebrow">Boss Focus: Sukuna</span>
+          </div>
+        </div>
+        <div class="character-grid" id="characterGrid"></div>
+      </div>
+    </section>
+    <div class="hud" id="hud">
+      <div class="top-bars">
+        <div class="health-wrap">
+          <div class="health-meta">
+            <span id="playerName">Player</span>
+            <span id="playerHpLabel">0 / 0</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" id="playerHealthFill"></div>
+          </div>
+        </div>
+        <div class="health-wrap right">
+          <div class="health-meta">
+            <span id="bossName">Ryomen Sukuna</span>
+            <span id="bossHpLabel">0 / 0</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill boss" id="bossHealthFill"></div>
+          </div>
+        </div>
+      </div>
+      <div class="status-banner" id="statusBanner"></div>
+      <div class="battle-info">
+        <div class="info-panel">
+          <strong>Controls</strong>
+          <span>WASD move, J basic attack, K cursed technique, Esc returns to character select.</span>
+        </div>
+        <div class="info-panel">
+          <strong>Technique</strong>
+          <span id="techStatus">Ready.</span>
+        </div>
+      </div>
+    </div>
+    <section class="screen" id="resultScreen">
+      <div class="result-layout">
+        <div class="panel result-panel">
+          <p class="eyebrow">Combat Report</p>
+          <h2 id="resultTitle">Mission Complete</h2>
+          <p class="result-copy" id="resultCopy"></p>
+          <div class="result-actions">
+            <button class="primary" id="replayButton">Pick Another Sorcerer</button>
+            <button id="retryButton">Run It Back</button>
+            <button class="danger" id="menuButton">Main Menu</button>
+          </div>
+        </div>
+        <div class="result-log">
+          <div class="info-panel">
+            <strong>Battle Time</strong>
+            <span id="resultTime">0.0s</span>
+          </div>
+          <div class="info-panel">
+            <strong>Character</strong>
+            <span id="resultCharacter">None</span>
+          </div>
+          <div class="info-panel">
+            <strong>Outcome</strong>
+            <span id="resultOutcome">Pending</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="scanlines"></div>
+    <div class="frame-vignette"></div>
+  </div>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+    const ARENA = { x: 90, y: 150, width: 1100, height: 495 };
+    const ui = {
+      mainMenu: document.getElementById("mainMenu"),
+      characterSelect: document.getElementById("characterSelect"),
+      resultScreen: document.getElementById("resultScreen"),
+      hud: document.getElementById("hud"),
+      statusBanner: document.getElementById("statusBanner"),
+      characterGrid: document.getElementById("characterGrid"),
+      playerName: document.getElementById("playerName"),
+      bossName: document.getElementById("bossName"),
+      playerHpLabel: document.getElementById("playerHpLabel"),
+      bossHpLabel: document.getElementById("bossHpLabel"),
+      playerHealthFill: document.getElementById("playerHealthFill"),
+      bossHealthFill: document.getElementById("bossHealthFill"),
+      techStatus: document.getElementById("techStatus"),
+      resultTitle: document.getElementById("resultTitle"),
+      resultCopy: document.getElementById("resultCopy"),
+      resultTime: document.getElementById("resultTime"),
+      resultCharacter: document.getElementById("resultCharacter"),
+      resultOutcome: document.getElementById("resultOutcome")
+    };
+    const heldKeys = new Set();
+    const pressedKeys = new Set();
+    const game = {
+      screen: "menu",
+      selectedCharacterId: null,
+      player: null,
+      boss: null,
+      attacks: [],
+      particles: [],
+      floaters: [],
+      combatClock: 0,
+      lastBossPattern: null,
+      statusMessage: "",
+      statusTimer: 0,
+      cameraShake: 0,
+      menuCycle: 0,
+      lastResultCharacterId: null
+    };
+    const characterRoster = [
+      {
+        id: "yuji",
+        name: "Yuji Itadori",
+        title: "Close-Range Pressure",
+        summary: "Yuji overwhelms Sukuna with relentless footwork and a Divergent Fist burst that lands a delayed second impact.",
+        lore: "Canon basis: close combat and Divergent Fist timing.",
+        speed: 360,
+        maxHp: 240,
+        attackDamage: 18,
+        attackRange: 70,
+        attackRadius: 30,
+        attackCooldown: 0.24,
+        specialCooldown: 2.8,
+        specialName: "Divergent Fist",
+        palette: {
+          primary: "#f18960",
+          secondary: "#1e2742",
+          accent: "#ffd16f",
+          skin: "#f2c6aa",
+          glow: "rgba(255, 209, 111, 0.72)"
+        },
+        render: "yuji",
+        startX: 270,
+        specialUse(player, boss) {
+          player.specialLock = 0.18;
+          player.specialDash = {
+            time: 0.18,
+            speed: 1040,
+            damage: 26,
+            echoQueued: false
+          };
+          spawnBanner("Yuji: Divergent Fist", "#ffd16f");
+        }
+      },
+      {
+        id: "megumi",
+        name: "Megumi Fushiguro",
+        title: "Ten Shadows Rushdown",
+        summary: "Megumi fights at mid-range, using quick knife pressure before calling Divine Dog to rip through openings.",
+        lore: "Canon basis: Ten Shadows Technique with Divine Dog.",
+        speed: 335,
+        maxHp: 220,
+        attackDamage: 16,
+        attackRange: 78,
+        attackRadius: 28,
+        attackCooldown: 0.22,
+        specialCooldown: 3.2,
+        specialName: "Divine Dog",
+        palette: {
+          primary: "#6f87ff",
+          secondary: "#101117",
+          accent: "#b7c4ff",
+          skin: "#dfc3aa",
+          glow: "rgba(183, 196, 255, 0.68)"
+        },
+        render: "megumi",
+        startX: 270,
+        specialUse(player, boss) {
+          const angle = Math.atan2(boss.y - player.y, boss.x - player.x);
+          spawnAttack({
+            team: "player",
+            shape: "circle",
+            label: "Divine Dog",
+            x: player.x + Math.cos(angle) * 40,
+            y: player.y + Math.sin(angle) * 30,
+            vx: Math.cos(angle) * 660,
+            vy: Math.sin(angle) * 660,
+            radius: 26,
+            lifetime: 0.95,
+            damage: 30,
+            knockback: 120,
+            color: "rgba(183, 196, 255, 0.72)",
+            telegraphColor: "rgba(183, 196, 255, 0.25)",
+            drawStyle: "wolf",
+            onHit(target) {
+              spawnBurst(target.x, target.y, "rgba(183, 196, 255, 0.48)", 90);
+            }
+          });
+          spawnBanner("Megumi: Divine Dog", "#b7c4ff");
+        }
+      },
+      {
+        id: "nobara",
+        name: "Nobara Kugisaki",
+        title: "Trap Zoner",
+        summary: "Nobara peppers the arena with nails and pops a Hairpin burst on contact to punish Sukuna's approach.",
+        lore: "Canon basis: Straw Doll Technique, nails, and Hairpin detonation.",
+        speed: 320,
+        maxHp: 205,
+        attackDamage: 15,
+        attackRange: 82,
+        attackRadius: 26,
+        attackCooldown: 0.21,
+        specialCooldown: 2.6,
+        specialName: "Hairpin",
+        palette: {
+          primary: "#db7c54",
+          secondary: "#291a1b",
+          accent: "#ffcfb1",
+          skin: "#f1c7b1",
+          glow: "rgba(255, 207, 177, 0.74)"
+        },
+        render: "nobara",
+        startX: 270,
+        specialUse(player, boss) {
+          const angle = Math.atan2(boss.y - player.y, boss.x - player.x);
+          spawnAttack({
+            team: "player",
+            shape: "circle",
+            label: "Hairpin Nail",
+            x: player.x + Math.cos(angle) * 30,
+            y: player.y + Math.sin(angle) * 14,
+            vx: Math.cos(angle) * 780,
+            vy: Math.sin(angle) * 780,
+            radius: 11,
+            lifetime: 0.85,
+            damage: 16,
+            knockback: 30,
+            color: "rgba(255, 207, 177, 0.78)",
+            telegraphColor: "rgba(255, 207, 177, 0.26)",
+            drawStyle: "nail",
+            onHit(target) {
+              queueDelayedBurst(target.x, target.y, {
+                team: "player",
+                radius: 84,
+                telegraph: 0.16,
+                active: 0.18,
+                lifetime: 0.34,
+                damage: 20,
+                knockback: 75,
+                color: "rgba(255, 176, 136, 0.65)",
+                telegraphColor: "rgba(255, 207, 177, 0.24)",
+                label: "Hairpin"
+              });
+              spawnBanner("Nobara: Hairpin", "#ffcfb1");
+            }
+          });
+        }
+      },
+      {
+        id: "gojo",
+        name: "Satoru Gojo",
+        title: "Control Specialist",
+        summary: "Gojo plays cleaner neutral, launching Blue to drag Sukuna off rhythm before stepping in with precise pressure.",
+        lore: "Canon basis: Limitless, using Cursed Technique Lapse: Blue.",
+        speed: 340,
+        maxHp: 225,
+        attackDamage: 17,
+        attackRange: 78,
+        attackRadius: 30,
+        attackCooldown: 0.2,
+        specialCooldown: 4.1,
+        specialName: "Blue",
+        palette: {
+          primary: "#8cc8ff",
+          secondary: "#1a2137",
+          accent: "#e6f5ff",
+          skin: "#efceb9",
+          glow: "rgba(140, 200, 255, 0.7)"
+        },
+        render: "gojo",
+        startX: 270,
+        specialUse(player, boss) {
+          const angle = Math.atan2(boss.y - player.y, boss.x - player.x);
+          spawnAttack({
+            team: "player",
+            shape: "circle",
+            label: "Blue",
+            x: player.x + Math.cos(angle) * 30,
+            y: player.y + Math.sin(angle) * 16,
+            vx: Math.cos(angle) * 340,
+            vy: Math.sin(angle) * 340,
+            radius: 24,
+            lifetime: 1.7,
+            damage: 8,
+            tickInterval: 0.18,
+            color: "rgba(140, 200, 255, 0.65)",
+            telegraphColor: "rgba(140, 200, 255, 0.24)",
+            drawStyle: "orb",
+            pullRadius: 165,
+            onUpdate(box, dt) {
+              if (!game.boss || game.boss.hp <= 0) {
+                return;
+              }
+              const dx = box.x - game.boss.x;
+              const dy = box.y - game.boss.y;
+              const distance = Math.hypot(dx, dy);
+              if (distance < box.pullRadius && distance > 0.01) {
+                const strength = (1 - distance / box.pullRadius) * 360;
+                game.boss.impulseX += (dx / distance) * strength * dt;
+                game.boss.impulseY += (dy / distance) * strength * dt;
+              }
+            },
+            onHit(target, box) {
+              box.hitTargets.delete(target.id);
+            }
+          });
+          spawnBanner("Gojo: Blue", "#e6f5ff");
+        }
+      }
+    ];
+    const bossData = {
+      id: "sukuna",
+      name: "Ryomen Sukuna",
+      title: "King of Curses",
+      maxHp: 520,
+      speed: 235,
+      palette: {
+        primary: "#ef8f8a",
+        secondary: "#311b20",
+        accent: "#ffcdc3",
+        skin: "#f0c4b0",
+        glow: "rgba(255, 115, 109, 0.72)"
+      },
+      render: "sukuna"
+    };
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+    function lerp(start, end, t) {
+      return start + (end - start) * t;
+    }
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    function normalizedVector(dx, dy) {
+      const length = Math.hypot(dx, dy) || 1;
+      return { x: dx / length, y: dy / length };
+    }
+    function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+      const lineX = x2 - x1;
+      const lineY = y2 - y1;
+      const lengthSquared = lineX * lineX + lineY * lineY || 1;
+      let t = ((px - x1) * lineX + (py - y1) * lineY) / lengthSquared;
+      t = clamp(t, 0, 1);
+      const projectionX = x1 + lineX * t;
+      const projectionY = y1 + lineY * t;
+      return Math.hypot(px - projectionX, py - projectionY);
+    }
+    function getCharacterById(id) {
+      return characterRoster.find((character) => character.id === id);
+    }
+    function createPlayer(character) {
+      return {
+        id: "player",
+        type: "player",
+        x: character.startX,
+        y: ARENA.y + ARENA.height * 0.58,
+        radius: 28,
+        facing: 1,
+        hp: character.maxHp,
+        maxHp: character.maxHp,
+        invuln: 0,
+        hitFlash: 0,
+        attackTimer: 0,
+        specialTimer: 0,
+        impulseX: 0,
+        impulseY: 0,
+        render: character.render,
+        data: character,
+        specialDash: null,
+        specialLock: 0
+      };
+    }
+    function createBoss() {
+      return {
+        id: "boss",
+        type: "boss",
+        x: ARENA.x + ARENA.width - 250,
+        y: ARENA.y + ARENA.height * 0.54,
+        radius: 36,
+        facing: -1,
+        hp: bossData.maxHp,
+        maxHp: bossData.maxHp,
+        invuln: 0,
+        hitFlash: 0,
+        impulseX: 0,
+        impulseY: 0,
+        speed: bossData.speed,
+        render: bossData.render,
+        data: bossData,
+        attackTimer: 1.2,
+        castLock: 0,
+        phase: 1
+      };
+    }
+    function showScreen(screenName) {
+      game.screen = screenName;
+      ui.mainMenu.classList.toggle("active", screenName === "menu");
+      ui.characterSelect.classList.toggle("active", screenName === "select");
+      ui.resultScreen.classList.toggle("active", screenName === "result");
+      ui.hud.classList.toggle("visible", screenName === "battle");
+    }
+    function clearCombatState() {
+      game.player = null;
+      game.boss = null;
+      game.attacks = [];
+      game.particles = [];
+      game.floaters = [];
+      game.cameraShake = 0;
+      heldKeys.clear();
+      pressedKeys.clear();
+      clearBanner();
+    }
+    function spawnBanner(text, color = "#f0c56e", duration = 1.0) {
+      game.statusMessage = text;
+      game.statusTimer = duration;
+      ui.statusBanner.textContent = text;
+      ui.statusBanner.style.color = color;
+      ui.statusBanner.classList.add("visible");
+    }
+    function clearBanner() {
+      game.statusTimer = 0;
+      ui.statusBanner.classList.remove("visible");
+    }
+    function spawnParticle(x, y, color, config = {}) {
+      game.particles.push({
+        x,
+        y,
+        vx: config.vx ?? (Math.random() - 0.5) * 150,
+        vy: config.vy ?? -40 - Math.random() * 90,
+        size: config.size ?? 5 + Math.random() * 7,
+        life: config.life ?? 0.4 + Math.random() * 0.35,
+        age: 0,
+        color
+      });
+    }
+    function spawnBurst(x, y, color, radius = 70, count = 12) {
+      for (let index = 0; index < count; index += 1) {
+        const angle = (Math.PI * 2 * index) / count;
+        const speed = radius * (1.1 + Math.random() * 0.8);
+        spawnParticle(x, y, color, {
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 5 + Math.random() * 6,
+          life: 0.28 + Math.random() * 0.22
+        });
+      }
+      addCameraShake(7);
+    }
+    function spawnFloater(text, x, y, color) {
+      game.floaters.push({
+        text,
+        x,
+        y,
+        color,
+        age: 0,
+        life: 0.8
+      });
+    }
+    function addCameraShake(amount) {
+      game.cameraShake = Math.max(game.cameraShake, amount);
+    }
+    function queueDelayedBurst(x, y, config) {
+      spawnAttack({
+        team: config.team,
+        shape: "circle",
+        x,
+        y,
+        radius: config.radius,
+        telegraph: config.telegraph,
+        active: config.active,
+        lifetime: config.lifetime,
+        damage: config.damage,
+        knockback: config.knockback,
+        color: config.color,
+        telegraphColor: config.telegraphColor,
+        label: config.label,
+        drawStyle: "pulse"
+      });
+    }
+    function spawnAttack(config) {
+      game.attacks.push({
+        id: `atk-${performance.now()}-${Math.random().toString(16).slice(2, 7)}`,
+        team: config.team,
+        shape: config.shape,
+        x: config.x,
+        y: config.y,
+        vx: config.vx ?? 0,
+        vy: config.vy ?? 0,
+        width: config.width ?? 0,
+        height: config.height ?? 0,
+        radius: config.radius ?? 0,
+        startX: config.startX ?? 0,
+        startY: config.startY ?? 0,
+        endX: config.endX ?? 0,
+        endY: config.endY ?? 0,
+        telegraph: config.telegraph ?? 0,
+        active: config.active ?? config.lifetime ?? 0.16,
+        lifetime: config.lifetime ?? ((config.telegraph ?? 0) + (config.active ?? 0.16)),
+        damage: config.damage ?? 0,
+        knockback: config.knockback ?? 0,
+        color: config.color ?? "rgba(255,255,255,0.6)",
+        telegraphColor: config.telegraphColor ?? "rgba(255,255,255,0.18)",
+        drawStyle: config.drawStyle ?? "default",
+        label: config.label ?? "",
+        owner: config.owner ?? null,
+        followOffsetX: config.followOffsetX ?? 0,
+        followOffsetY: config.followOffsetY ?? 0,
+        followFacing: config.followFacing ?? 1,
+        pullRadius: config.pullRadius ?? 0,
+        tickInterval: config.tickInterval ?? 0,
+        lastTickAt: -999,
+        age: 0,
+        hitTargets: new Set(),
+        onHit: config.onHit ?? null,
+        onUpdate: config.onUpdate ?? null,
+        onExpire: config.onExpire ?? null
+      });
+    }
+    function buildCharacterGrid() {
+      ui.characterGrid.innerHTML = "";
+      characterRoster.forEach((character) => {
+        const card = document.createElement("button");
+        card.className = "character-card panel";
+        card.style.setProperty("--accent", character.palette.accent);
+        card.innerHTML = `
+          <h3>${character.name}</h3>
+          <div class="role">${character.title}</div>
+          <p>${character.summary}</p>
+          <div class="card-stat-grid">
+            <div class="card-stat">
+              <strong>Speed</strong>
+              <span>${Math.round(character.speed / 10)}</span>
+            </div>
+            <div class="card-stat">
+              <strong>HP</strong>
+              <span>${character.maxHp}</span>
+            </div>
+            <div class="card-stat">
+              <strong>Basic</strong>
+              <span>J Strike</span>
+            </div>
+            <div class="card-stat">
+              <strong>Special</strong>
+              <span>K ${character.specialName}</span>
+            </div>
+          </div>
+          <div class="card-move">
+            <strong>Canon Note:</strong> ${character.lore}
+          </div>
+        `;
+        card.addEventListener("click", () => startBattle(character.id));
+        ui.characterGrid.append(card);
+      });
+    }
+    function startBattle(characterId) {
+      const character = getCharacterById(characterId);
+      if (!character) {
+        return;
+      }
+      clearCombatState();
+      game.selectedCharacterId = characterId;
+      game.lastResultCharacterId = characterId;
+      game.player = createPlayer(character);
+      game.boss = createBoss();
+      game.combatClock = 0;
+      game.lastBossPattern = null;
+      showScreen("battle");
+      syncHud();
+      spawnBanner("Shinjuku Showdown", "#f0c56e", 1.25);
+    }
+    function backToCharacterSelect() {
+      clearCombatState();
+      showScreen("select");
+    }
+    function openResult(victory) {
+      const character = getCharacterById(game.lastResultCharacterId);
+      const battleTime = `${game.combatClock.toFixed(1)}s`;
+      ui.resultTime.textContent = battleTime;
+      ui.resultCharacter.textContent = character ? character.name : "Unknown";
+      ui.resultOutcome.textContent = victory ? "Sukuna Defeated" : "Sorcerer Down";
+      if (victory) {
+        ui.resultTitle.textContent = "Mission Complete";
+        ui.resultCopy.textContent = `${character ? character.name : "The sorcerer"} held their ground, survived Sukuna's pressure, and carved through the King of Curses in this prototype round.`;
+      } else {
+        ui.resultTitle.textContent = "Mission Failed";
+        ui.resultCopy.textContent = `Sukuna won this exchange. Reset the fight, read his slash timings sooner, and use your technique to punish the end of each pattern.`;
+      }
+      showScreen("result");
+    }
+    function syncHud() {
+      if (!game.player || !game.boss) {
+        return;
+      }
+      const player = game.player;
+      const boss = game.boss;
+      ui.playerName.textContent = player.data.name;
+      ui.playerHpLabel.textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+      ui.bossName.textContent = boss.data.name;
+      ui.bossHpLabel.textContent = `${Math.ceil(boss.hp)} / ${boss.maxHp}`;
+      ui.playerHealthFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
+      ui.bossHealthFill.style.width = `${(boss.hp / boss.maxHp) * 100}%`;
+      const specialReady = player.specialTimer <= 0;
+      ui.techStatus.textContent = specialReady
+        ? `${player.data.specialName} is ready.`
+        : `${player.data.specialName} returns in ${player.specialTimer.toFixed(1)}s.`;
+    }
+    function applyDamage(target, amount, attacker, source) {
+      if (!target || target.hp <= 0) {
+        return false;
+      }
+      if (target.invuln > 0) {
+        return false;
+      }
+      target.hp = clamp(target.hp - amount, 0, target.maxHp);
+      target.invuln = target.type === "boss" ? 0.08 : 0.5;
+      target.hitFlash = 0.18;
+      const directionVector = normalizedVector(target.x - attacker.x, target.y - attacker.y);
+      const knockbackAmount = source.knockback ?? 0;
+      target.impulseX += directionVector.x * knockbackAmount;
+      target.impulseY += directionVector.y * knockbackAmount;
+      const floaterColor = source.team === "player" ? "#8df3ff" : "#ff8d96";
+      spawnFloater(`-${Math.round(amount)}`, target.x, target.y - target.radius - 10, floaterColor);
+      for (let index = 0; index < 8; index += 1) {
+        spawnParticle(target.x, target.y, source.color, {
+          size: 4 + Math.random() * 5,
+          life: 0.2 + Math.random() * 0.18
+        });
+      }
+      addCameraShake(source.team === "player" ? 5 : 9);
+      return true;
+    }
+    function tryPlayerBasic() {
+      const player = game.player;
+      if (!player || player.attackTimer > 0 || player.specialLock > 0) {
+        return;
+      }
+      player.attackTimer = player.data.attackCooldown;
+      spawnAttack({
+        team: "player",
+        shape: "circle",
+        owner: player,
+        followOffsetX: player.data.attackRange,
+        followOffsetY: -2,
+        followFacing: player.facing,
+        radius: player.data.attackRadius,
+        telegraph: 0.04,
+        active: 0.12,
+        lifetime: 0.18,
+        damage: player.data.attackDamage,
+        knockback: 72,
+        color: player.data.palette.glow,
+        telegraphColor: "rgba(255, 255, 255, 0.16)",
+        drawStyle: "slash",
+        label: "Strike"
+      });
+    }
+    function tryPlayerSpecial() {
+      const player = game.player;
+      const boss = game.boss;
+      if (!player || !boss || player.specialTimer > 0 || player.specialLock > 0) {
+        return;
+      }
+      player.specialTimer = player.data.specialCooldown;
+      player.data.specialUse(player, boss);
+    }
+    function updatePlayer(dt) {
+      const player = game.player;
+      const boss = game.boss;
+      if (!player || !boss) {
+        return;
+      }
+      player.invuln = Math.max(0, player.invuln - dt);
+      player.hitFlash = Math.max(0, player.hitFlash - dt);
+      player.attackTimer = Math.max(0, player.attackTimer - dt);
+      player.specialTimer = Math.max(0, player.specialTimer - dt);
+      player.specialLock = Math.max(0, player.specialLock - dt);
+      if (pressedKeys.has("j")) {
+        tryPlayerBasic();
+      }
+      if (pressedKeys.has("k")) {
+        tryPlayerSpecial();
+      }
+      let moveX = 0;
+      let moveY = 0;
+      if (heldKeys.has("a")) {
+        moveX -= 1;
+      }
+      if (heldKeys.has("d")) {
+        moveX += 1;
+      }
+      if (heldKeys.has("w")) {
+        moveY -= 1;
+      }
+      if (heldKeys.has("s")) {
+        moveY += 1;
+      }
+      if (moveX !== 0 || moveY !== 0) {
+        const movement = normalizedVector(moveX, moveY);
+        const moveScale = player.specialLock > 0 ? 0.35 : 1;
+        player.x += movement.x * player.data.speed * moveScale * dt;
+        player.y += movement.y * player.data.speed * moveScale * dt;
+        if (Math.abs(movement.x) > 0.1) {
+          player.facing = Math.sign(movement.x);
+        }
+      } else {
+        player.facing = boss.x >= player.x ? 1 : -1;
+      }
+      if (player.specialDash) {
+        player.x += player.facing * player.specialDash.speed * dt;
+        player.specialDash.time -= dt;
+        const dashSource = { x: player.x + player.facing * 34, y: player.y };
+        if (distance(dashSource, boss) < player.radius + boss.radius + 24) {
+          const didHit = applyDamage(boss, player.specialDash.damage, dashSource, {
+            team: "player",
+            knockback: 110,
+            color: player.data.palette.glow
+          });
+          if (didHit && !player.specialDash.echoQueued) {
+            player.specialDash.echoQueued = true;
+            queueDelayedBurst(boss.x, boss.y, {
+              team: "player",
+              radius: 68,
+              telegraph: 0.15,
+              active: 0.14,
+              lifetime: 0.29,
+              damage: 20,
+              knockback: 95,
+              color: "rgba(255, 209, 111, 0.52)",
+              telegraphColor: "rgba(255, 209, 111, 0.2)",
+              label: "Divergent Echo"
+            });
+          }
+        }
+        if (player.specialDash.time <= 0) {
+          player.specialDash = null;
+        }
+      }
+      player.x += player.impulseX * dt;
+      player.y += player.impulseY * dt;
+      player.impulseX = lerp(player.impulseX, 0, dt * 10);
+      player.impulseY = lerp(player.impulseY, 0, dt * 10);
+      player.x = clamp(player.x, ARENA.x + 35, ARENA.x + ARENA.width - 35);
+      player.y = clamp(player.y, ARENA.y + 44, ARENA.y + ARENA.height - 28);
+    }
+    function chooseBossPattern() {
+      const boss = game.boss;
+      const player = game.player;
+      if (!boss || !player) {
+        return;
+      }
+      const phase = boss.hp < boss.maxHp * 0.45 ? 2 : 1;
+      boss.phase = phase;
+      const patterns = ["dismantle", "cleave", "furnace"];
+      if (phase === 2) {
+        patterns.push("rush");
+      }
+      let pattern = patterns[Math.floor(Math.random() * patterns.length)];
+      if (pattern === game.lastBossPattern) {
+        pattern = patterns[(patterns.indexOf(pattern) + 1) % patterns.length];
+      }
+      game.lastBossPattern = pattern;
+      if (pattern === "dismantle") {
+        castDismantle();
+      } else if (pattern === "cleave") {
+        castCleave();
+      } else if (pattern === "furnace") {
+        castFurnace();
+      } else {
+        castRush();
+      }
+    }
+    function castDismantle() {
+      const boss = game.boss;
+      const player = game.player;
+      const angleBase = Math.atan2(player.y - boss.y, player.x - boss.x);
+      const offsets = [-0.22, 0, 0.22];
+      boss.castLock = 0.48;
+      boss.attackTimer = boss.phase === 2 ? 1.1 : 1.4;
+      spawnBanner("Sukuna: Dismantle", "#ff9f95");
+      offsets.forEach((offset) => {
+        const angle = angleBase + offset;
+        spawnAttack({
+          team: "boss",
+          shape: "line",
+          startX: boss.x,
+          startY: boss.y - 10,
+          endX: boss.x + Math.cos(angle) * 1040,
+          endY: boss.y + Math.sin(angle) * 1040,
+          width: 28,
+          telegraph: 0.36,
+          active: 0.12,
+          lifetime: 0.52,
+          damage: 18,
+          knockback: 140,
+          color: "rgba(255, 245, 245, 0.85)",
+          telegraphColor: "rgba(255, 115, 109, 0.28)",
+          drawStyle: "line-slash"
+        });
+      });
+    }
+    function castCleave() {
+      const boss = game.boss;
+      const player = game.player;
+      const circles = [
+        { x: player.x, y: player.y, radius: 78 },
+        { x: clamp(player.x + player.facing * 110, ARENA.x + 70, ARENA.x + ARENA.width - 70), y: clamp(player.y - 22, ARENA.y + 70, ARENA.y + ARENA.height - 70), radius: 64 }
+      ];
+      boss.castLock = 0.65;
+      boss.attackTimer = boss.phase === 2 ? 1.2 : 1.55;
+      spawnBanner("Sukuna: Cleave", "#ff736d");
+      circles.forEach((circle, index) => {
+        spawnAttack({
+          team: "boss",
+          shape: "circle",
+          x: circle.x,
+          y: circle.y,
+          radius: circle.radius,
+          telegraph: 0.55 + index * 0.1,
+          active: 0.16,
+          lifetime: 0.82,
+          damage: 25,
+          knockback: 170,
+          color: "rgba(255, 132, 120, 0.54)",
+          telegraphColor: "rgba(255, 115, 109, 0.2)",
+          drawStyle: "pulse"
+        });
+      });
+    }
+    function castFurnace() {
+      const boss = game.boss;
+      const player = game.player;
+      const horizontal = Math.random() > 0.5;
+      const laneThickness = 140;
+      const laneX = horizontal ? ARENA.x : clamp(player.x - laneThickness / 2, ARENA.x, ARENA.x + ARENA.width - laneThickness);
+      const laneY = horizontal ? clamp(player.y - laneThickness / 2, ARENA.y, ARENA.y + ARENA.height - laneThickness) : ARENA.y;
+      const laneWidth = horizontal ? ARENA.width : laneThickness;
+      const laneHeight = horizontal ? laneThickness : ARENA.height;
+      boss.castLock = 0.95;
+      boss.attackTimer = boss.phase === 2 ? 1.5 : 1.9;
+      spawnBanner("Sukuna: Furnace", "#ffbf76", 1.15);
+      spawnAttack({
+        team: "boss",
+        shape: "rect",
+        x: laneX,
+        y: laneY,
+        width: laneWidth,
+        height: laneHeight,
+        telegraph: 0.88,
+        active: 0.24,
+        lifetime: 1.14,
+        damage: 32,
+        knockback: 200,
+        color: "rgba(255, 170, 112, 0.48)",
+        telegraphColor: "rgba(255, 170, 112, 0.22)",
+        drawStyle: "lane"
+      });
+    }
+    function castRush() {
+      const boss = game.boss;
+      const player = game.player;
+      const direction = normalizedVector(player.x - boss.x, player.y - boss.y);
+      boss.castLock = 0.22;
+      boss.attackTimer = 1.15;
+      spawnBanner("Sukuna: Rush Slash", "#ff9f95", 0.9);
+      spawnAttack({
+        team: "boss",
+        shape: "circle",
+        x: boss.x,
+        y: boss.y,
+        vx: direction.x * 930,
+        vy: direction.y * 930,
+        radius: 38,
+        telegraph: 0.1,
+        active: 0.22,
+        lifetime: 0.44,
+        damage: 22,
+        knockback: 165,
+        color: "rgba(255, 147, 137, 0.7)",
+        telegraphColor: "rgba(255, 115, 109, 0.18)",
+        drawStyle: "dash"
+      });
+    }
+    function updateBoss(dt) {
+      const boss = game.boss;
+      const player = game.player;
+      if (!boss || !player) {
+        return;
+      }
+      boss.invuln = Math.max(0, boss.invuln - dt);
+      boss.hitFlash = Math.max(0, boss.hitFlash - dt);
+      boss.attackTimer = Math.max(0, boss.attackTimer - dt);
+      boss.castLock = Math.max(0, boss.castLock - dt);
+      const dx = player.x - boss.x;
+      const dy = player.y - boss.y;
+      const distanceToPlayer = Math.hypot(dx, dy);
+      const direction = normalizedVector(dx, dy);
+      boss.facing = direction.x >= 0 ? 1 : -1;
+      if (boss.castLock <= 0) {
+        let moveX = 0;
+        let moveY = 0;
+        if (distanceToPlayer > 300) {
+          moveX = direction.x;
+          moveY = direction.y;
+        } else if (distanceToPlayer < 185) {
+          moveX = -direction.x;
+          moveY = -direction.y;
+        } else {
+          const strafeSign = Math.sin(game.combatClock * 2.2) >= 0 ? 1 : -1;
+          moveX = -direction.y * strafeSign;
+          moveY = direction.x * strafeSign;
+        }
+        boss.x += moveX * boss.speed * dt;
+        boss.y += moveY * boss.speed * dt;
+      }
+      boss.x += boss.impulseX * dt;
+      boss.y += boss.impulseY * dt;
+      boss.impulseX = lerp(boss.impulseX, 0, dt * 8);
+      boss.impulseY = lerp(boss.impulseY, 0, dt * 8);
+      boss.x = clamp(boss.x, ARENA.x + 35, ARENA.x + ARENA.width - 35);
+      boss.y = clamp(boss.y, ARENA.y + 40, ARENA.y + ARENA.height - 25);
+      if (boss.attackTimer <= 0) {
+        chooseBossPattern();
+      }
+    }
+    function circleHits(target, attack) {
+      return Math.hypot(target.x - attack.x, target.y - attack.y) <= target.radius + attack.radius;
+    }
+    function rectHits(target, attack) {
+      const closestX = clamp(target.x, attack.x, attack.x + attack.width);
+      const closestY = clamp(target.y, attack.y, attack.y + attack.height);
+      return Math.hypot(target.x - closestX, target.y - closestY) <= target.radius;
+    }
+    function lineHits(target, attack) {
+      return pointToSegmentDistance(target.x, target.y, attack.startX, attack.startY, attack.endX, attack.endY) <= target.radius + attack.width / 2;
+    }
+    function isAttackActive(attack) {
+      return attack.age >= attack.telegraph && attack.age <= attack.telegraph + attack.active;
+    }
+    function updateAttacks(dt) {
+      const player = game.player;
+      const boss = game.boss;
+      game.attacks = game.attacks.filter((attack) => {
+        attack.age += dt;
+        if (attack.owner) {
+          attack.x = attack.owner.x + attack.followOffsetX * attack.followFacing;
+          attack.y = attack.owner.y + attack.followOffsetY;
+        } else {
+          attack.x += attack.vx * dt;
+          attack.y += attack.vy * dt;
+        }
+        if (attack.onUpdate) {
+          attack.onUpdate(attack, dt);
+        }
+        const target = attack.team === "player" ? boss : player;
+        if (target && target.hp > 0 && isAttackActive(attack)) {
+          let hit = false;
+          if (attack.shape === "circle") {
+            hit = circleHits(target, attack);
+          } else if (attack.shape === "rect") {
+            hit = rectHits(target, attack);
+          } else if (attack.shape === "line") {
+            hit = lineHits(target, attack);
+          }
+          if (hit) {
+            const tickReady =
+              attack.tickInterval === 0 ||
+              attack.age - attack.lastTickAt >= attack.tickInterval;
+            if (!attack.hitTargets.has(target.id) || attack.tickInterval > 0) {
+              if (tickReady) {
+                attack.lastTickAt = attack.age;
+                attack.hitTargets.add(target.id);
+                const sourcePosition =
+                  attack.shape === "line"
+                    ? { x: (attack.startX + attack.endX) * 0.5, y: (attack.startY + attack.endY) * 0.5 }
+                    : { x: attack.x, y: attack.y };
+                const didHit = applyDamage(target, attack.damage, sourcePosition, attack);
+                if (didHit && attack.onHit) {
+                  attack.onHit(target, attack);
+                }
+              }
+            }
+          }
+        }
+        if (
+          attack.shape !== "line" &&
+          (attack.x < ARENA.x - 200 ||
+            attack.x > ARENA.x + ARENA.width + 200 ||
+            attack.y < ARENA.y - 200 ||
+            attack.y > ARENA.y + ARENA.height + 200)
+        ) {
+          return false;
+        }
+        const isAlive = attack.age < attack.lifetime;
+        if (!isAlive && attack.onExpire) {
+          attack.onExpire(attack);
+        }
+        return isAlive;
+      });
+    }
+    function updateParticles(dt) {
+      game.particles = game.particles.filter((particle) => {
+        particle.age += dt;
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.vx *= 0.96;
+        particle.vy *= 0.96;
+        return particle.age < particle.life;
+      });
+      game.floaters = game.floaters.filter((floater) => {
+        floater.age += dt;
+        floater.y -= 46 * dt;
+        return floater.age < floater.life;
+      });
+    }
+    function updateBattle(dt) {
+      if (!game.player || !game.boss) {
+        return;
+      }
+      game.combatClock += dt;
+      updatePlayer(dt);
+      updateBoss(dt);
+      updateAttacks(dt);
+      updateParticles(dt);
+      syncHud();
+      if (game.statusTimer > 0) {
+        game.statusTimer -= dt;
+        if (game.statusTimer <= 0) {
+          clearBanner();
+        }
+      }
+      if (game.player.hp <= 0) {
+        game.player.hp = 0;
+        game.lastResultCharacterId = game.selectedCharacterId;
+        openResult(false);
+      } else if (game.boss.hp <= 0) {
+        game.boss.hp = 0;
+        game.lastResultCharacterId = game.selectedCharacterId;
+        openResult(true);
+      }
+    }
+    function updateMenuScene(dt) {
+      game.menuCycle += dt;
+      updateParticles(dt);
+      if (Math.random() < 0.08) {
+        spawnParticle(
+          ARENA.x + Math.random() * ARENA.width,
+          ARENA.y + ARENA.height * 0.7 + Math.random() * 30,
+          "rgba(255, 196, 142, 0.2)",
+          {
+            vx: (Math.random() - 0.5) * 16,
+            vy: -12 - Math.random() * 28,
+            size: 3 + Math.random() * 3,
+            life: 1.2 + Math.random() * 0.6
+          }
+        );
+      }
+    }
+    function update(dt) {
+      if (game.screen === "battle") {
+        updateBattle(dt);
+      } else {
+        updateMenuScene(dt);
+      }
+      game.cameraShake = lerp(game.cameraShake, 0, dt * 8);
+    }
+    function drawPolygon(points, fill, stroke = "rgba(255,255,255,0.12)") {
+      ctx.beginPath();
+      ctx.moveTo(points[0][0], points[0][1]);
+      for (let index = 1; index < points.length; index += 1) {
+        ctx.lineTo(points[index][0], points[index][1]);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    function drawStage() {
+      const horizon = ARENA.y - 36;
+      const floorTop = ARENA.y + 78;
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, horizon + 90);
+      skyGradient.addColorStop(0, "#1e1b2b");
+      skyGradient.addColorStop(0.5, "#3d2330");
+      skyGradient.addColorStop(1, "#2a2235");
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(0, 0, WIDTH, floorTop);
+      ctx.fillStyle = "#1a1520";
+      drawPolygon(
+        [
+          [0, floorTop],
+          [160, 200],
+          [310, 262],
+          [500, 178],
+          [760, 252],
+          [940, 170],
+          [1140, 244],
+          [1280, 196],
+          [1280, floorTop],
+          [0, floorTop]
+        ],
+        "#1a1520",
+        "rgba(255,255,255,0.02)"
+      );
+      drawPolygon(
+        [
+          [0, floorTop + 18],
+          [190, 260],
+          [390, 304],
+          [625, 216],
+          [850, 290],
+          [1110, 214],
+          [1280, 268],
+          [1280, floorTop + 18],
+          [0, floorTop + 18]
+        ],
+        "#291f2a",
+        "rgba(255,255,255,0.02)"
+      );
+      ctx.fillStyle = "#18131b";
+      ctx.fillRect(0, floorTop, WIDTH, HEIGHT - floorTop);
+      const floorGradient = ctx.createLinearGradient(0, ARENA.y, 0, ARENA.y + ARENA.height);
+      floorGradient.addColorStop(0, "#31222a");
+      floorGradient.addColorStop(0.4, "#1f1920");
+      floorGradient.addColorStop(1, "#0e0f15");
+      ctx.fillStyle = floorGradient;
+      ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+      ctx.strokeStyle = "rgba(255, 214, 173, 0.06)";
+      ctx.lineWidth = 1;
+      for (let row = 0; row <= 11; row += 1) {
+        const y = ARENA.y + row * 42;
+        ctx.beginPath();
+        ctx.moveTo(ARENA.x, y);
+        ctx.lineTo(ARENA.x + ARENA.width, y + row * 3.8);
+        ctx.stroke();
+      }
+      for (let col = 0; col <= 16; col += 1) {
+        const x = ARENA.x + col * 66;
+        ctx.beginPath();
+        ctx.moveTo(x, ARENA.y + 48);
+        ctx.lineTo(ARENA.x + ARENA.width / 2 + (x - (ARENA.x + ARENA.width / 2)) * 1.35, ARENA.y + ARENA.height);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(0, 0, 0, 0.26)";
+      ctx.fillRect(ARENA.x - 10, ARENA.y - 10, ARENA.width + 20, 18);
+      ctx.fillRect(ARENA.x - 10, ARENA.y + ARENA.height - 4, ARENA.width + 20, 12);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+      ctx.fillStyle = "rgba(255, 201, 148, 0.11)";
+      drawPolygon(
+        [
+          [960, 146],
+          [1020, 102],
+          [1072, 130],
+          [1105, 92],
+          [1150, 146],
+          [1150, 236],
+          [960, 236]
+        ],
+        "rgba(255, 201, 148, 0.11)",
+        "rgba(255, 255, 255, 0.04)"
+      );
+    }
+    function drawAttack(attack) {
+      const active = isAttackActive(attack);
+      const progress = clamp(attack.age / attack.lifetime, 0, 1);
+      if (attack.shape === "circle") {
+        ctx.beginPath();
+        ctx.arc(attack.x, attack.y, attack.radius, 0, Math.PI * 2);
+        ctx.fillStyle = active ? attack.color : attack.telegraphColor;
+        ctx.fill();
+        ctx.lineWidth = active ? 2.2 : 1.2;
+        ctx.strokeStyle = active ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.12)";
+        ctx.stroke();
+        if (attack.drawStyle === "orb") {
+          const glow = ctx.createRadialGradient(attack.x, attack.y, 8, attack.x, attack.y, attack.radius * 2);
+          glow.addColorStop(0, "rgba(255,255,255,0.26)");
+          glow.addColorStop(1, "rgba(140,200,255,0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(attack.x, attack.y, attack.radius * 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (attack.shape === "rect") {
+        ctx.fillStyle = active ? attack.color : attack.telegraphColor;
+        ctx.fillRect(attack.x, attack.y, attack.width, attack.height);
+        ctx.strokeStyle = active ? "rgba(255, 238, 219, 0.55)" : "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(attack.x, attack.y, attack.width, attack.height);
+      } else if (attack.shape === "line") {
+        ctx.lineCap = "round";
+        ctx.strokeStyle = active ? attack.color : attack.telegraphColor;
+        ctx.lineWidth = attack.width;
+        ctx.beginPath();
+        ctx.moveTo(attack.startX, attack.startY);
+        ctx.lineTo(attack.endX, attack.endY);
+        ctx.stroke();
+        if (active) {
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = attack.width * 0.18;
+          ctx.beginPath();
+          ctx.moveTo(attack.startX, attack.startY);
+          ctx.lineTo(attack.endX, attack.endY);
+          ctx.stroke();
+        }
+      }
+      if (!active && attack.label) {
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.font = "12px 'Lucida Console', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(attack.label, attack.x || (attack.startX + attack.endX) * 0.5, (attack.y || (attack.startY + attack.endY) * 0.5) - 18 - progress * 8);
+      }
+    }
+    function drawShadow(x, y, radius, opacity = 0.22) {
+      ctx.beginPath();
+      ctx.ellipse(x, y + 22, radius * 1.15, radius * 0.4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+      ctx.fill();
+    }
+    function drawFighter(entity, palette, renderStyle) {
+      if (!entity) {
+        return;
+      }
+      const flashColor = entity.hitFlash > 0 ? "rgba(255,255,255,0.7)" : null;
+      drawShadow(entity.x, entity.y, entity.radius + 8, entity.type === "boss" ? 0.3 : 0.2);
+      ctx.save();
+      ctx.translate(entity.x, entity.y);
+      ctx.scale(entity.facing, 1);
+      const bodyPrimary = flashColor || palette.primary;
+      const bodySecondary = flashColor || palette.secondary;
+      const bodyAccent = flashColor || palette.accent;
+      drawPolygon(
+        [
+          [-18, 38],
+          [-8, -14],
+          [10, -18],
+          [24, 36],
+          [8, 40],
+          [-8, 43]
+        ],
+        bodySecondary
+      );
+      drawPolygon(
+        [
+          [-22, 4],
+          [-14, -26],
+          [3, -35],
+          [21, -24],
+          [24, 4],
+          [4, 18],
+          [-16, 12]
+        ],
+        bodyPrimary
+      );
+      drawPolygon(
+        [
+          [-14, -44],
+          [0, -60],
+          [18, -45],
+          [14, -22],
+          [-9, -20]
+        ],
+        palette.skin
+      );
+      if (renderStyle === "yuji") {
+        drawPolygon(
+          [
+            [-20, -52],
+            [-5, -72],
+            [10, -71],
+            [24, -49],
+            [6, -36],
+            [-10, -38]
+          ],
+          bodyAccent
+        );
+      } else if (renderStyle === "megumi") {
+        drawPolygon(
+          [
+            [-22, -42],
+            [-10, -70],
+            [5, -64],
+            [21, -76],
+            [26, -48],
+            [4, -32]
+          ],
+          bodySecondary
+        );
+      } else if (renderStyle === "nobara") {
+        drawPolygon(
+          [
+            [-24, -46],
+            [-14, -68],
+            [7, -70],
+            [23, -52],
+            [14, -30],
+            [-9, -28]
+          ],
+          bodyAccent
+        );
+      } else if (renderStyle === "gojo") {
+        drawPolygon(
+          [
+            [-18, -42],
+            [-4, -66],
+            [18, -60],
+            [26, -42],
+            [15, -28],
+            [-9, -30]
+          ],
+          "#e7f8ff"
+        );
+        ctx.strokeStyle = "#0b0f17";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-10, -42);
+        ctx.lineTo(16, -42);
+        ctx.stroke();
+      } else if (renderStyle === "sukuna") {
+        drawPolygon(
+          [
+            [-22, -46],
+            [-10, -70],
+            [5, -68],
+            [23, -50],
+            [14, -28],
+            [-8, -30]
+          ],
+          "#e1948f"
+        );
+        ctx.strokeStyle = "#351319";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-4, -52);
+        ctx.lineTo(1, -36);
+        ctx.moveTo(10, -52);
+        ctx.lineTo(5, -36);
+        ctx.moveTo(-7, -28);
+        ctx.lineTo(13, -28);
+        ctx.stroke();
+      }
+      drawPolygon(
+        [
+          [-34, -8],
+          [-12, -18],
+          [-3, -6],
+          [-8, 7],
+          [-24, 12]
+        ],
+        bodyAccent
+      );
+      drawPolygon(
+        [
+          [14, -14],
+          [32, -6],
+          [27, 10],
+          [8, 6],
+          [2, -8]
+        ],
+        bodyAccent
+      );
+      if (entity.type === "boss") {
+        drawPolygon(
+          [
+            [-26, 16],
+            [0, 10],
+            [20, 20],
+            [18, 38],
+            [-18, 40]
+          ],
+          "#431a22"
+        );
+      }
+      ctx.restore();
+    }
+    function drawParticles() {
+      game.particles.forEach((particle) => {
+        const alpha = 1 - particle.age / particle.life;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+      game.floaters.forEach((floater) => {
+        const alpha = 1 - floater.age / floater.life;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = floater.color;
+        ctx.font = "18px 'Lucida Console', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(floater.text, floater.x, floater.y);
+        ctx.globalAlpha = 1;
+      });
+    }
+    function drawMenuShowcase() {
+      const showcaseIndex = Math.floor(game.menuCycle * 0.15) % characterRoster.length;
+      const showcaseCharacter = characterRoster[showcaseIndex];
+      const previewPlayer = {
+        x: ARENA.x + 270,
+        y: ARENA.y + ARENA.height * 0.62 + Math.sin(game.menuCycle * 2) * 8,
+        radius: 28,
+        facing: 1,
+        type: "player",
+        hitFlash: 0
+      };
+      const previewBoss = {
+        x: ARENA.x + ARENA.width - 260,
+        y: ARENA.y + ARENA.height * 0.52 + Math.sin(game.menuCycle * 2.2) * 10,
+        radius: 34,
+        facing: -1,
+        type: "boss",
+        hitFlash: 0
+      };
+      drawFighter(previewPlayer, showcaseCharacter.palette, showcaseCharacter.render);
+      drawFighter(previewBoss, bossData.palette, bossData.render);
+      ctx.fillStyle = "rgba(255,255,255,0.64)";
+      ctx.font = "14px 'Lucida Console', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(showcaseCharacter.name, previewPlayer.x, previewPlayer.y - 102);
+      ctx.fillText("Ryomen Sukuna", previewBoss.x, previewBoss.y - 102);
+    }
+    function render() {
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      drawStage();
+      if (game.screen === "battle") {
+        const shakeX = (Math.random() - 0.5) * game.cameraShake;
+        const shakeY = (Math.random() - 0.5) * game.cameraShake;
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
+        game.attacks.forEach((attack) => {
+          if (!isAttackActive(attack)) {
+            drawAttack(attack);
+          }
+        });
+        drawFighter(game.player, game.player.data.palette, game.player.render);
+        drawFighter(game.boss, bossData.palette, bossData.render);
+        game.attacks.forEach((attack) => {
+          if (isAttackActive(attack)) {
+            drawAttack(attack);
+          }
+        });
+        drawParticles();
+        ctx.restore();
+      } else {
+        drawMenuShowcase();
+        drawParticles();
+      }
+    }
+    function loop(now) {
+      if (!loop.lastTime) {
+        loop.lastTime = now;
+      }
+      const dt = Math.min((now - loop.lastTime) / 1000, 1 / 30);
+      loop.lastTime = now;
+      update(dt);
+      render();
+      pressedKeys.clear();
+      requestAnimationFrame(loop);
+    }
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      if (!heldKeys.has(key)) {
+        pressedKeys.add(key);
+      }
+      heldKeys.add(key);
+      if (["w", "a", "s", "d", "j", "k", "enter", "escape", " "].includes(key)) {
+        event.preventDefault();
+      }
+      if (key === "enter" && game.screen === "menu") {
+        clearCombatState();
+        showScreen("select");
+      }
+      if (key === "escape" && game.screen === "battle") {
+        backToCharacterSelect();
+      }
+      if (key === "enter" && game.screen === "result") {
+        clearCombatState();
+        showScreen("select");
+      }
+    });
+    window.addEventListener("keyup", (event) => {
+      heldKeys.delete(event.key.toLowerCase());
+    });
+    document.getElementById("startButton").addEventListener("click", () => {
+      clearCombatState();
+      showScreen("select");
+    });
+    document.getElementById("jumpSelectButton").addEventListener("click", () => {
+      clearCombatState();
+      showScreen("select");
+    });
+    document.getElementById("backToMenu").addEventListener("click", () => {
+      clearCombatState();
+      showScreen("menu");
+    });
+    document.getElementById("replayButton").addEventListener("click", () => {
+      clearCombatState();
+      showScreen("select");
+    });
+    document.getElementById("menuButton").addEventListener("click", () => {
+      clearCombatState();
+      showScreen("menu");
+    });
+    document.getElementById("retryButton").addEventListener("click", () => {
+      if (game.lastResultCharacterId) {
+        startBattle(game.lastResultCharacterId);
+      } else {
+        showScreen("select");
+      }
+    });
+    buildCharacterGrid();
+    showScreen("menu");
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
