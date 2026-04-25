@@ -2308,6 +2308,7 @@
         knockback: config.knockback ?? 0,
         hitstun: config.hitstun ?? 0,
         launch: config.launch ?? 0,
+        spike: config.spike ?? 0,
         chipRatio: config.chipRatio ?? 0,
         blockPush: config.blockPush ?? 0,
         guardStun: config.guardStun ?? 0,
@@ -2318,6 +2319,10 @@
         color: config.color ?? "rgba(255,255,255,0.6)",
         telegraphColor: config.telegraphColor ?? "rgba(255,255,255,0.18)",
         drawStyle: config.drawStyle ?? "default",
+        vfx: config.vfx ?? "",
+        arcStart: config.arcStart ?? null,
+        arcEnd: config.arcEnd ?? null,
+        glyphPhase: config.glyphPhase ?? 0,
         label: config.label ?? "",
         owner: config.owner ?? null,
         followOffsetX: config.followOffsetX ?? 0,
@@ -2988,6 +2993,7 @@
       }
 
       decayCombatState(boss, dt);
+      boss.intentTimer = Math.max(0, (boss.intentTimer ?? 0) - dt);
       faceOpponent(boss, player);
 
       if (boss.hitstun <= 0 && boss.guardStun <= 0) {
@@ -5603,10 +5609,10 @@
       finalBattleInfoSpans[0].textContent = "A/D move and dash, W jump or double-jump, S shield on the ground or fast-fall in the air, Space dodge or air-dodge, J basic string, K cursed technique, Esc returns.";
     }
     if (finalBattleInfoSpans[1]) {
-      finalBattleInfoSpans[1].textContent = "The stage has open sides now. Recovery matters: drift back, double-jump, and spend your dodge carefully.";
+      finalBattleInfoSpans[1].textContent = "The rooftop is wider now for future multiplayer. Hold center stage, use the extra platforms, and expect longer chase sequences.";
     }
     if (finalBattleInfoSpans[2]) {
-      finalBattleInfoSpans[2].textContent = "Sukuna still plays canon-inspired pressure: Dismantle for slicing lanes, Cleave for close-range punishment, and Furnace to control space.";
+      finalBattleInfoSpans[2].textContent = "Sukuna now telegraphs harder: Dismantle slices lanes, Cleave carves the close range, Furnace floods a line, and Rush Slash tries to catch landings.";
     }
 
     const FINAL_SMASH_STAGE = {
@@ -5614,19 +5620,21 @@
         id: "main",
         x: WIDTH / 2,
         y: HEIGHT - 156,
-        width: 676,
+        width: 1028,
         height: 30,
         dropThrough: false
       },
       platforms: [
-        { id: "left", x: WIDTH / 2 - 212, y: HEIGHT - 298, width: 176, height: 16, dropThrough: true },
-        { id: "center", x: WIDTH / 2, y: HEIGHT - 376, width: 238, height: 16, dropThrough: true },
-        { id: "right", x: WIDTH / 2 + 212, y: HEIGHT - 298, width: 176, height: 16, dropThrough: true }
+        { id: "outer-left", x: WIDTH / 2 - 396, y: HEIGHT - 278, width: 174, height: 16, dropThrough: true },
+        { id: "left", x: WIDTH / 2 - 220, y: HEIGHT - 342, width: 196, height: 16, dropThrough: true },
+        { id: "center", x: WIDTH / 2, y: HEIGHT - 418, width: 258, height: 16, dropThrough: true },
+        { id: "right", x: WIDTH / 2 + 220, y: HEIGHT - 342, width: 196, height: 16, dropThrough: true },
+        { id: "outer-right", x: WIDTH / 2 + 396, y: HEIGHT - 278, width: 174, height: 16, dropThrough: true }
       ],
-      blastLeft: -240,
-      blastRight: WIDTH + 240,
-      blastTop: -220,
-      blastBottom: HEIGHT + 240
+      blastLeft: -520,
+      blastRight: WIDTH + 520,
+      blastTop: -260,
+      blastBottom: HEIGHT + 320
     };
     FINAL_SMASH_STAGE.surfaces = [FINAL_SMASH_STAGE.main, ...FINAL_SMASH_STAGE.platforms];
 
@@ -5662,7 +5670,8 @@
       cameraZoom: game.cameraZoom ?? 1,
       battleZoomKick: game.battleZoomKick ?? 0,
       finishType: game.finishType ?? null,
-      stageStorm: game.stageStorm ?? 0
+      stageStorm: game.stageStorm ?? 0,
+      pulseClock: game.pulseClock ?? 0
     });
 
     Object.assign(audioEngine, {
@@ -5741,6 +5750,7 @@
       game.cameraX = WIDTH / 2;
       game.cameraY = HEIGHT / 2;
       game.cameraZoom = 1;
+      game.pulseClock = 0;
       heldKeys.clear();
       pressedKeys.clear();
       clearBanner();
@@ -5760,8 +5770,8 @@
       game.combatClock = 0;
       game.lastBossPattern = null;
       game.cameraX = FINAL_SMASH_STAGE.main.x;
-      game.cameraY = HEIGHT / 2 - 20;
-      game.cameraZoom = 1.02;
+      game.cameraY = HEIGHT / 2 - 12;
+      game.cameraZoom = 0.96;
       showScreen("battle");
       syncHud();
       spawnBanner("Shinjuku Rooftop Clash", "#ffd199", 1.35);
@@ -5811,7 +5821,7 @@
       return {
         id: "player",
         type: "player",
-        x: FINAL_SMASH_STAGE.main.x - 170,
+        x: FINAL_SMASH_STAGE.main.x - 250,
         y: FINAL_SMASH_STAGE.main.y,
         groundY: FINAL_SMASH_STAGE.main.y,
         radius: 30,
@@ -5867,7 +5877,7 @@
       return {
         id: "boss",
         type: "boss",
-        x: FINAL_SMASH_STAGE.main.x + 170,
+        x: FINAL_SMASH_STAGE.main.x + 250,
         y: FINAL_SMASH_STAGE.main.y,
         groundY: FINAL_SMASH_STAGE.main.y,
         radius: 36,
@@ -5887,6 +5897,7 @@
         render: bossData.render,
         data: bossData,
         attackTimer: 0.8,
+        attackCooldownMax: 0.8,
         recovery: 0,
         castLock: 0,
         hitstun: 0,
@@ -5894,6 +5905,10 @@
         phase: 1,
         rushState: null,
         state: "idle",
+        intentLabel: "Sizing You Up",
+        intentColor: "#ffd4b1",
+        intentTimer: 0,
+        intentDuration: 0.1,
         coyoteTimer: FINAL_MOVESET.coyoteTime,
         maxAirJumps: 1,
         airJumpsLeft: 1,
@@ -5907,6 +5922,42 @@
         evadeVectorX: 0,
         evadeVectorY: 0
       };
+    }
+
+    function setBossIntent(label, color, duration = 0.28, cooldownMax = null) {
+      const boss = game.boss;
+      if (!boss) {
+        return;
+      }
+      boss.intentLabel = label;
+      boss.intentColor = color;
+      boss.intentTimer = duration;
+      boss.intentDuration = duration;
+      boss.attackCooldownMax = Math.max(cooldownMax ?? boss.attackTimer ?? duration, 0.12);
+    }
+
+    function spawnSukunaCastBurst(kind, x, y) {
+      const colorMap = {
+        dismantle: "rgba(255, 160, 148, 0.4)",
+        cleave: "rgba(255, 126, 113, 0.44)",
+        furnace: "rgba(255, 190, 124, 0.48)",
+        rush: "rgba(255, 147, 137, 0.42)"
+      };
+      const color = colorMap[kind] ?? "rgba(255, 155, 140, 0.42)";
+
+      spawnShockwave(x, y + 8, color, 20, kind === "furnace" ? 124 : 86, 0.24, 5);
+      for (let index = 0; index < (kind === "furnace" ? 18 : 12); index += 1) {
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * (kind === "furnace" ? 1.9 : 1.4);
+        const speed = kind === "rush" ? 220 + Math.random() * 180 : 140 + Math.random() * 160;
+        spawnParticle(x, y - 18 + Math.random() * 30, color, {
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 4 + Math.random() * 5,
+          life: 0.18 + Math.random() * 0.18,
+          kind: index % 2 === 0 ? "spark" : "shard",
+          gravity: 320
+        });
+      }
     }
 
     function registerDashTap(entity, dir) {
@@ -6087,27 +6138,36 @@
       ui.playerHealthFill.style.width = `${(player.hp / player.maxHp) * 100}%`;
       ui.bossHealthFill.style.width = `${(boss.hp / boss.maxHp) * 100}%`;
 
+      const bossReadout =
+        boss.hitstun > 0
+          ? "Sukuna is staggered."
+          : boss.intentTimer > 0
+            ? `Sukuna: ${boss.intentLabel}.`
+            : boss.attackTimer > 0.08
+              ? `Sukuna resets in ${boss.attackTimer.toFixed(1)}s.`
+              : "Sukuna is ready to swing.";
+
       const offstage = Math.abs(player.x - FINAL_SMASH_STAGE.main.x) > FINAL_SMASH_STAGE.main.width / 2 + 34 || player.y > FINAL_SMASH_STAGE.main.y + 42;
       if (player.hitstun > 0) {
         ui.techStatus.textContent = offstage
-          ? "You're getting launched offstage. Drift back to center, double-jump late, and save the dodge for recovery."
-          : "Hitstun. DI out, land on a platform, and reset neutral before Sukuna starts the next string.";
+          ? `You're getting launched offstage. Drift back to center, double-jump late, and save the dodge for recovery. ${bossReadout}`
+          : `Hitstun. DI out, land on a platform, and reset neutral before Sukuna starts the next string. ${bossReadout}`;
       } else if (player.isBlocking) {
-        ui.techStatus.textContent = "Shielding. Use S to absorb frontal pressure, then jump, roll, or swing on Sukuna's recovery.";
+        ui.techStatus.textContent = `Shielding. Use S to absorb frontal pressure, then jump, roll, or swing on Sukuna's recovery. ${bossReadout}`;
       } else if (offstage) {
         ui.techStatus.textContent = player.airDodgeUsed
-          ? "Offstage with the dodge spent. Drift hard back to the main roof and protect your last double-jump."
-          : "Offstage. W gives the double-jump, Space air-dodges, and A/D drift controls the recovery line.";
+          ? `Offstage with the dodge spent. Drift hard back to the main roof and protect your last double-jump. ${bossReadout}`
+          : `Offstage. W gives the double-jump, Space air-dodges, and A/D drift controls the recovery line. ${bossReadout}`;
       } else if (!player.onGround) {
         ui.techStatus.textContent = player.airJumpsLeft > 0
-          ? "Airborne. Tap W then release for a short hop, hold it for height, and use S to fast-fall punishes."
-          : "No double-jump left. Land safely or air-dodge through a slash before overcommitting.";
+          ? `Airborne. Tap W then release for a short hop, hold it for height, and use S to fast-fall punishes. ${bossReadout}`
+          : `No double-jump left. Land safely or air-dodge through a slash before overcommitting. ${bossReadout}`;
       } else if (player.dodgeCooldown > 0.1) {
-        ui.techStatus.textContent = `Dodge recharges in ${player.dodgeCooldown.toFixed(1)}s. Control center stage until it comes back.`;
+        ui.techStatus.textContent = `Dodge recharges in ${player.dodgeCooldown.toFixed(1)}s. Control center stage until it comes back. ${bossReadout}`;
       } else if (player.specialTimer <= 0) {
-        ui.techStatus.textContent = `${player.data.specialName} is ready. Confirm it after a launch, whiff, or blocked Sukuna string.`;
+        ui.techStatus.textContent = `${player.data.specialName} is ready. Confirm it after a launch, whiff, or blocked Sukuna string. ${bossReadout}`;
       } else {
-        ui.techStatus.textContent = `${player.data.specialName} returns in ${player.specialTimer.toFixed(1)}s. Dash in with J or bait a punish with Space.`;
+        ui.techStatus.textContent = `${player.data.specialName} returns in ${player.specialTimer.toFixed(1)}s. Dash in with J or bait a punish with Space. ${bossReadout}`;
       }
     }
 
@@ -6711,8 +6771,10 @@
       boss.castLock = 0.18;
       boss.recovery = Math.max(boss.recovery, 0.76);
       boss.attackTimer = boss.phase === 2 ? 0.84 : 1.06;
+      setBossIntent("Dismantle", "#ffb3ab", 0.44, boss.attackTimer);
       spawnBanner("Sukuna: Dismantle", "#ff9f95");
       triggerScreenFlash("rgba(255, 127, 115, 0.12)", 0.08);
+      spawnSukunaCastBurst("dismantle", boss.x, boss.y - 26);
       playSfx("dismantle", { pan: stagePan(boss.x) });
 
       laneOffsets.forEach((offset, index) => {
@@ -6738,6 +6800,8 @@
           color: "rgba(255, 245, 245, 0.88)",
           telegraphColor: "rgba(255, 115, 109, 0.2)",
           drawStyle: "line-slash",
+          vfx: "sukuna-dismantle",
+          glyphPhase: index * 0.7,
           onUpdate(box) {
             if (Math.random() < 0.34) {
               const ratio = Math.random();
@@ -6765,7 +6829,9 @@
       boss.recovery = Math.max(boss.recovery, 0.74);
       boss.attackTimer = boss.phase === 2 ? 0.82 : 1.02;
       boss.vx += boss.facing * 120;
+      setBossIntent("Cleave", "#ff8d80", 0.34, boss.attackTimer);
       spawnBanner("Sukuna: Cleave", "#ff736d");
+      spawnSukunaCastBurst("cleave", boss.x + boss.facing * 28, boss.y - 22);
       playSfx("bossSwing", { pan: stagePan(boss.x) });
 
       swings.forEach((swing) => {
@@ -6789,6 +6855,7 @@
           color: "rgba(255, 132, 120, 0.7)",
           telegraphColor: "rgba(255, 115, 109, 0.18)",
           drawStyle: "slash",
+          vfx: "sukuna-cleave",
           arcStart: swing.arcStart,
           arcEnd: swing.arcEnd
         });
@@ -6805,8 +6872,10 @@
       boss.castLock = 0.18;
       boss.recovery = Math.max(boss.recovery, 1.0);
       boss.attackTimer = boss.phase === 2 ? 1.02 : 1.26;
+      setBossIntent("Furnace", "#ffc777", 0.56, boss.attackTimer);
       spawnBanner("Sukuna: Furnace", "#ffbf76", 1.05);
       triggerScreenFlash("rgba(255, 186, 120, 0.12)", 0.09);
+      spawnSukunaCastBurst("furnace", boss.x + boss.facing * 18, boss.y - 18);
       playSfx("furnace", { pan: stagePan(boss.x) });
 
       spawnAttack({
@@ -6830,6 +6899,7 @@
         color: "rgba(255, 170, 112, 0.6)",
         telegraphColor: "rgba(255, 170, 112, 0.22)",
         drawStyle: "lane",
+        vfx: "sukuna-furnace",
         label: "Furnace",
         onUpdate(box) {
           if (Math.random() < 0.5) {
@@ -6852,7 +6922,9 @@
       boss.recovery = Math.max(boss.recovery, 0.56);
       boss.attackTimer = boss.phase === 2 ? 0.76 : 0.96;
       boss.rushState = { time: 0.28, speed: 920 };
+      setBossIntent("Rush Slash", "#ff9f95", 0.26, boss.attackTimer);
       spawnBanner("Sukuna: Rush Slash", "#ff9f95", 0.88);
+      spawnSukunaCastBurst("rush", boss.x, boss.y - 24);
       playSfx("rush", { pan: stagePan(boss.x) });
 
       spawnAttack({
@@ -6875,6 +6947,7 @@
         color: "rgba(255, 147, 137, 0.74)",
         telegraphColor: "rgba(255, 115, 109, 0.18)",
         drawStyle: "dash",
+        vfx: "sukuna-rush",
         arcStart: -1.18,
         arcEnd: 0.76
       });
@@ -6950,6 +7023,22 @@
         }
         if (boss.rushState.time <= 0) {
           boss.rushState = null;
+        }
+      }
+
+      if (boss.hitstun > 0) {
+        boss.intentLabel = "Staggered";
+        boss.intentColor = "#ffdcae";
+      } else if (boss.intentTimer <= 0) {
+        if (boss.attackTimer > 0.22) {
+          boss.intentLabel = "Recovering";
+          boss.intentColor = "#ffbf94";
+        } else if (boss.attackTimer > 0.05) {
+          boss.intentLabel = "Re-engaging";
+          boss.intentColor = "#ffd4b1";
+        } else {
+          boss.intentLabel = "Attack Ready";
+          boss.intentColor = "#ff7c6b";
         }
       }
 
@@ -7140,10 +7229,10 @@
       const focusY = minY - 110 + (maxY - minY) * 0.28;
       const spanX = maxX - minX;
       const spanY = maxY - minY;
-      const offstagePressure = Math.max(Math.abs(focusX - WIDTH / 2) - 70, 0);
-      const targetZoom = clamp(1.16 - spanX / 1320 - spanY / 980 - offstagePressure / 700 + game.battleZoomKick, 0.82, 1.12);
+      const offstagePressure = Math.max(Math.abs(focusX - WIDTH / 2) - 120, 0);
+      const targetZoom = clamp(1.08 - spanX / 1780 - spanY / 1260 - offstagePressure / 1080 + game.battleZoomKick, 0.68, 1.08);
 
-      game.cameraX = lerp(game.cameraX, clamp(focusX, WIDTH / 2 - 240, WIDTH / 2 + 240), dt * 4.2);
+      game.cameraX = lerp(game.cameraX, clamp(focusX, WIDTH / 2 - 430, WIDTH / 2 + 430), dt * 4.2);
       game.cameraY = lerp(game.cameraY, clamp(focusY, HEIGHT / 2 - 90, HEIGHT / 2 + 84), dt * 4.0);
       game.cameraZoom = lerp(game.cameraZoom, targetZoom, dt * 4.1);
     }
@@ -7151,6 +7240,7 @@
     function updateParticles(dt) {
       game.stageDrift += dt;
       game.stageStorm += dt;
+      game.pulseClock += dt;
       syncBattleAmbience(game.screen === "battle");
 
       game.particles = game.particles.filter((particle) => {
@@ -7372,8 +7462,8 @@
       }
 
       if (isMain) {
-        for (let spike = 0; spike < 5; spike += 1) {
-          const rebarX = left + 30 + spike * 126;
+        for (let spike = 0; spike < 8; spike += 1) {
+          const rebarX = left + 34 + spike * ((surface.width - 84) / 7);
           ctx.strokeStyle = "rgba(255, 150, 123, 0.24)";
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -7401,14 +7491,17 @@
       const farOffset = (game.cameraX - WIDTH / 2) * 0.18;
       const midOffset = (game.cameraX - WIDTH / 2) * 0.34;
       const skyline = [
-        { x: 40, width: 110, height: 250 },
-        { x: 170, width: 84, height: 210 },
-        { x: 298, width: 138, height: 280 },
-        { x: 470, width: 92, height: 222 },
-        { x: 606, width: 124, height: 300 },
-        { x: 780, width: 96, height: 236 },
-        { x: 928, width: 142, height: 286 },
-        { x: 1118, width: 98, height: 242 }
+        { x: -230, width: 104, height: 198 },
+        { x: -72, width: 116, height: 226 },
+        { x: 102, width: 110, height: 250 },
+        { x: 258, width: 84, height: 210 },
+        { x: 388, width: 138, height: 280 },
+        { x: 562, width: 92, height: 222 },
+        { x: 698, width: 124, height: 300 },
+        { x: 872, width: 96, height: 236 },
+        { x: 1020, width: 142, height: 286 },
+        { x: 1210, width: 98, height: 242 },
+        { x: 1360, width: 122, height: 262 }
       ];
 
       ctx.save();
@@ -7440,26 +7533,26 @@
       ctx.translate(-midOffset, 0);
       drawPolygon(
         [
-          [84, 468],
-          [190, 352],
-          [266, 402],
-          [348, 330],
-          [438, 474],
-          [438, 560],
-          [84, 560]
+          [-130, 490],
+          [-18, 356],
+          [70, 420],
+          [166, 332],
+          [274, 486],
+          [274, 580],
+          [-130, 580]
         ],
         "rgba(18, 18, 27, 0.86)",
         "rgba(255,255,255,0.03)"
       );
       drawPolygon(
         [
-          [886, 474],
-          [978, 336],
-          [1048, 394],
-          [1132, 316],
-          [1222, 478],
-          [1222, 562],
-          [886, 562]
+          [990, 474],
+          [1102, 326],
+          [1178, 402],
+          [1272, 302],
+          [1380, 484],
+          [1380, 576],
+          [990, 576]
         ],
         "rgba(20, 17, 25, 0.88)",
         "rgba(255,255,255,0.03)"
@@ -7467,8 +7560,8 @@
       ctx.restore();
 
       ctx.fillStyle = "rgba(255, 172, 127, 0.12)";
-      ctx.fillRect(208, FINAL_SMASH_STAGE.main.y - 18, 118, 24);
-      ctx.fillRect(952, FINAL_SMASH_STAGE.main.y - 26, 124, 24);
+      ctx.fillRect(26, FINAL_SMASH_STAGE.main.y - 24, 160, 30);
+      ctx.fillRect(1098, FINAL_SMASH_STAGE.main.y - 28, 154, 28);
 
       const underGlow = ctx.createLinearGradient(0, FINAL_SMASH_STAGE.main.y + 16, 0, HEIGHT);
       underGlow.addColorStop(0, "rgba(255, 112, 78, 0.14)");
@@ -7578,7 +7671,89 @@
       const opacity = active ? 1 : 0.52;
 
       if (attack.shape === "circle") {
-        if (attack.drawStyle === "slash" || attack.drawStyle === "dash") {
+        if (attack.vfx === "sukuna-cleave") {
+          const radius = attack.radius * (active ? 1.14 : 0.9);
+          const direction = attack.followFacing ?? 1;
+          const arcStart = attack.arcStart ?? -1.2;
+          const arcEnd = attack.arcEnd ?? 0.86;
+          ctx.save();
+          ctx.translate(attack.x, attack.y);
+          ctx.scale(direction, 1);
+          ctx.rotate(Math.sin(lifeRatio * Math.PI) * 0.2);
+          ctx.globalAlpha = opacity;
+
+          ctx.strokeStyle = active ? "rgba(33, 8, 12, 0.84)" : "rgba(61, 12, 18, 0.48)";
+          ctx.lineWidth = active ? radius * 0.7 : radius * 0.32;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, arcStart, arcEnd);
+          ctx.stroke();
+
+          ctx.strokeStyle = active ? attack.color : attack.telegraphColor;
+          ctx.lineWidth = active ? radius * 0.44 : radius * 0.2;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius * 0.97, arcStart + 0.04, arcEnd - 0.02);
+          ctx.stroke();
+
+          ctx.strokeStyle = active ? "rgba(255, 238, 236, 0.82)" : "rgba(255, 214, 210, 0.32)";
+          ctx.lineWidth = active ? 2.8 : 1.1;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius * 0.9, arcStart + 0.12, arcEnd - 0.12);
+          ctx.stroke();
+
+          for (let shard = 0; shard < 4; shard += 1) {
+            const shardAngle = arcStart + ((arcEnd - arcStart) * shard) / 3;
+            const sx = Math.cos(shardAngle) * radius * 0.74;
+            const sy = Math.sin(shardAngle) * radius * 0.74;
+            drawPolygon(
+              [
+                [sx, sy],
+                [sx + 18, sy - 6],
+                [sx + 12, sy + 14]
+              ],
+              active ? "rgba(255, 120, 109, 0.5)" : "rgba(255, 120, 109, 0.22)",
+              "rgba(255,255,255,0.08)"
+            );
+          }
+
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        } else if (attack.vfx === "sukuna-rush") {
+          const radius = attack.radius * (active ? 1.08 : 0.94);
+          const direction = attack.followFacing ?? 1;
+          ctx.save();
+          ctx.translate(attack.x, attack.y);
+          ctx.scale(direction, 1);
+          ctx.rotate(0.2 + Math.sin(lifeRatio * Math.PI) * 0.12);
+          ctx.globalAlpha = opacity;
+
+          drawPolygon(
+            [
+              [-radius * 1.4, -radius * 0.28],
+              [radius * 0.86, -radius * 0.66],
+              [radius * 1.36, 0],
+              [radius * 0.84, radius * 0.68],
+              [-radius * 1.4, radius * 0.28]
+            ],
+            active ? "rgba(90, 18, 24, 0.42)" : "rgba(62, 10, 16, 0.22)",
+            "rgba(255,255,255,0.08)"
+          );
+
+          ctx.strokeStyle = active ? attack.color : attack.telegraphColor;
+          ctx.lineWidth = active ? radius * 0.4 : radius * 0.18;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, -1.12, 0.82);
+          ctx.stroke();
+
+          ctx.strokeStyle = active ? "rgba(255,255,255,0.84)" : "rgba(255,255,255,0.24)";
+          ctx.lineWidth = active ? 2.2 : 1.1;
+          ctx.beginPath();
+          ctx.moveTo(-radius * 1.2, 0);
+          ctx.lineTo(radius * 1.16, -radius * 0.08);
+          ctx.stroke();
+
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        } else if (attack.drawStyle === "slash" || attack.drawStyle === "dash") {
           const radius = attack.radius * (active ? 1.08 : 0.9);
           const direction = attack.followFacing ?? 1;
           const arcStart = attack.arcStart ?? -1.15;
@@ -7640,31 +7815,122 @@
           ctx.fill();
         }
       } else if (attack.shape === "rect") {
-        const rectGradient = ctx.createLinearGradient(attack.x, attack.y, attack.x + attack.width, attack.y);
-        rectGradient.addColorStop(0, active ? "rgba(255, 184, 120, 0.14)" : "rgba(255,184,120,0.08)");
-        rectGradient.addColorStop(0.45, active ? attack.color : attack.telegraphColor);
-        rectGradient.addColorStop(1, "rgba(255, 255, 255, 0.08)");
-        ctx.fillStyle = rectGradient;
-        ctx.fillRect(attack.x, attack.y, attack.width, attack.height);
-        ctx.strokeStyle = active ? "rgba(255, 238, 219, 0.62)" : "rgba(255,255,255,0.14)";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(attack.x, attack.y, attack.width, attack.height);
+        if (attack.vfx === "sukuna-furnace") {
+          const rectGradient = ctx.createLinearGradient(attack.x, attack.y, attack.x + attack.width, attack.y);
+          rectGradient.addColorStop(0, active ? "rgba(98, 24, 12, 0.48)" : "rgba(79, 18, 8, 0.2)");
+          rectGradient.addColorStop(0.28, active ? "rgba(255, 118, 67, 0.72)" : attack.telegraphColor);
+          rectGradient.addColorStop(0.65, active ? "rgba(255, 190, 118, 0.82)" : "rgba(255, 178, 111, 0.2)");
+          rectGradient.addColorStop(1, "rgba(255, 255, 255, 0.08)");
+          ctx.fillStyle = rectGradient;
+          ctx.fillRect(attack.x, attack.y, attack.width, attack.height);
+
+          ctx.fillStyle = active ? "rgba(31, 10, 7, 0.34)" : "rgba(31, 10, 7, 0.12)";
+          ctx.fillRect(attack.x + 4, attack.y + 10, attack.width - 8, attack.height - 20);
+
+          for (let flame = 0; flame < 8; flame += 1) {
+            const fx = attack.x + flame * (attack.width / 7);
+            const sway = Math.sin(game.stageStorm * 11 + flame * 0.7 + lifeRatio * 4) * 8;
+            drawPolygon(
+              [
+                [fx - 14, attack.y + attack.height],
+                [fx + sway, attack.y - 8 - Math.sin(game.stageStorm * 8 + flame) * 10],
+                [fx + 18, attack.y + attack.height]
+              ],
+              active ? "rgba(255, 210, 137, 0.42)" : "rgba(255, 166, 112, 0.14)",
+              "rgba(255,255,255,0.04)"
+            );
+          }
+
+          ctx.strokeStyle = active ? "rgba(255, 238, 219, 0.72)" : "rgba(255,255,255,0.16)";
+          ctx.lineWidth = 2.2;
+          ctx.strokeRect(attack.x, attack.y, attack.width, attack.height);
+        } else {
+          const rectGradient = ctx.createLinearGradient(attack.x, attack.y, attack.x + attack.width, attack.y);
+          rectGradient.addColorStop(0, active ? "rgba(255, 184, 120, 0.14)" : "rgba(255,184,120,0.08)");
+          rectGradient.addColorStop(0.45, active ? attack.color : attack.telegraphColor);
+          rectGradient.addColorStop(1, "rgba(255, 255, 255, 0.08)");
+          ctx.fillStyle = rectGradient;
+          ctx.fillRect(attack.x, attack.y, attack.width, attack.height);
+          ctx.strokeStyle = active ? "rgba(255, 238, 219, 0.62)" : "rgba(255,255,255,0.14)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(attack.x, attack.y, attack.width, attack.height);
+        }
       } else if (attack.shape === "line") {
-        ctx.lineCap = "round";
-        ctx.globalAlpha = opacity;
-        ctx.strokeStyle = active ? attack.color : attack.telegraphColor;
-        ctx.lineWidth = active ? attack.width : attack.width * 0.7;
-        ctx.beginPath();
-        ctx.moveTo(attack.startX, attack.startY);
-        ctx.lineTo(attack.endX, attack.endY);
-        ctx.stroke();
-        ctx.strokeStyle = "rgba(255,255,255,0.82)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(attack.startX, attack.startY);
-        ctx.lineTo(attack.endX, attack.endY);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+        if (attack.vfx === "sukuna-dismantle") {
+          const dx = attack.endX - attack.startX;
+          const dy = attack.endY - attack.startY;
+          const length = Math.hypot(dx, dy);
+          const angle = Math.atan2(dy, dx);
+
+          ctx.save();
+          ctx.translate(attack.startX, attack.startY);
+          ctx.rotate(angle);
+          ctx.globalAlpha = opacity;
+
+          if (!active) {
+            ctx.fillStyle = "rgba(68, 12, 18, 0.24)";
+            ctx.fillRect(0, -attack.width * 0.58, length, attack.width * 1.16);
+            ctx.strokeStyle = attack.telegraphColor;
+            ctx.lineWidth = attack.width * 0.44;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(length, 0);
+            ctx.stroke();
+          } else {
+            ctx.strokeStyle = "rgba(26, 8, 12, 0.86)";
+            ctx.lineWidth = attack.width * 0.96;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(length, 0);
+            ctx.stroke();
+
+            ctx.strokeStyle = attack.color;
+            ctx.lineWidth = attack.width * 0.52;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(length, 0);
+            ctx.stroke();
+
+            ctx.strokeStyle = "rgba(255,255,255,0.88)";
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(length, 0);
+            ctx.stroke();
+          }
+
+          for (let marker = 0; marker < 6; marker += 1) {
+            const mx = 28 + marker * ((length - 56) / 5);
+            const glyphWobble = Math.sin(game.stageStorm * 6 + marker + (attack.glyphPhase ?? 0)) * 2.4;
+            ctx.strokeStyle = active ? "rgba(255, 190, 186, 0.64)" : "rgba(255, 136, 125, 0.22)";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(mx - 8, -10 - glyphWobble);
+            ctx.lineTo(mx + 8, 10 + glyphWobble);
+            ctx.moveTo(mx - 6, 10 + glyphWobble);
+            ctx.lineTo(mx + 6, -10 - glyphWobble);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.lineCap = "round";
+          ctx.globalAlpha = opacity;
+          ctx.strokeStyle = active ? attack.color : attack.telegraphColor;
+          ctx.lineWidth = active ? attack.width : attack.width * 0.7;
+          ctx.beginPath();
+          ctx.moveTo(attack.startX, attack.startY);
+          ctx.lineTo(attack.endX, attack.endY);
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(255,255,255,0.82)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(attack.startX, attack.startY);
+          ctx.lineTo(attack.endX, attack.endY);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
       }
 
       if (!active && attack.label) {
@@ -7968,6 +8234,108 @@
       ctx.textAlign = "left";
     }
 
+    function worldToScreen(x, y) {
+      return {
+        x: WIDTH / 2 + (x - game.cameraX) * game.cameraZoom,
+        y: HEIGHT / 2 + (y - game.cameraY) * game.cameraZoom
+      };
+    }
+
+    function drawReadoutBar(x, y, width, height, ratio, color, label, valueText) {
+      ctx.fillStyle = "rgba(8, 12, 22, 0.78)";
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(x, y, width, height);
+
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fillRect(x + 2, y + height - 7, width - 4, 4);
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 2, y + height - 7, (width - 4) * clamp01(ratio), 4);
+
+      ctx.fillStyle = "rgba(255,255,255,0.76)";
+      ctx.font = "11px 'Lucida Console', monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(label, x + 6, y + 13);
+      ctx.textAlign = "right";
+      ctx.fillText(valueText, x + width - 6, y + 13);
+    }
+
+    function drawPlayerReadoutPanel() {
+      const player = game.player;
+      if (!player) {
+        return;
+      }
+
+      const pos = worldToScreen(player.x, player.y - player.radius - 92);
+      const pulse = 0.5 + 0.5 * Math.sin(game.pulseClock * 8);
+      const specialRatio = player.data.specialCooldown > 0 ? 1 - clamp01(player.specialTimer / player.data.specialCooldown) : 1;
+      const dodgeRatio = 1 - clamp01(player.dodgeCooldown / FINAL_MOVESET.dodgeCooldown);
+      const width = 132;
+      const x = pos.x - width / 2;
+      const y = pos.y;
+
+      drawReadoutBar(
+        x,
+        y,
+        width,
+        20,
+        specialRatio,
+        player.specialTimer <= 0 ? `rgba(114, 237, 210, ${0.72 + pulse * 0.2})` : "rgba(114, 237, 210, 0.48)",
+        "K TECH",
+        player.specialTimer <= 0 ? "READY" : `${player.specialTimer.toFixed(1)}s`
+      );
+      drawReadoutBar(
+        x,
+        y + 24,
+        width,
+        20,
+        dodgeRatio,
+        player.dodgeCooldown <= 0.05 ? `rgba(125, 214, 255, ${0.7 + pulse * 0.2})` : "rgba(125, 214, 255, 0.46)",
+        "SPACE",
+        player.dodgeCooldown <= 0.05 ? "READY" : `${player.dodgeCooldown.toFixed(1)}s`
+      );
+    }
+
+    function drawBossReadoutPanel() {
+      const boss = game.boss;
+      if (!boss) {
+        return;
+      }
+
+      const pos = worldToScreen(boss.x, boss.y - boss.radius - 102);
+      const pulse = 0.5 + 0.5 * Math.sin(game.pulseClock * 9.5);
+      const width = 174;
+      const x = pos.x - width / 2;
+      const y = pos.y;
+      const cooldownRatio = boss.attackTimer <= 0.04 ? 1 : 1 - clamp01(boss.attackTimer / Math.max(boss.attackCooldownMax ?? 0.12, 0.12));
+
+      ctx.fillStyle = "rgba(18, 10, 14, 0.8)";
+      ctx.fillRect(x, y, width, 30);
+      ctx.strokeStyle = boss.intentColor ?? "rgba(255, 159, 149, 0.72)";
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(x, y, width, 30);
+
+      ctx.fillStyle = "rgba(255,255,255,0.84)";
+      ctx.font = "11px 'Lucida Console', monospace";
+      ctx.textAlign = "left";
+      ctx.fillText("SUKUNA", x + 8, y + 12);
+      ctx.fillStyle = boss.intentColor ?? "rgba(255, 159, 149, 0.84)";
+      ctx.fillText(boss.intentLabel ?? "Attack Ready", x + 8, y + 24);
+
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      ctx.fillRect(x + 98, y + 7, width - 106, 6);
+      ctx.fillStyle = boss.attackTimer <= 0.04
+        ? `rgba(255, 140, 118, ${0.72 + pulse * 0.2})`
+        : "rgba(255, 140, 118, 0.52)";
+      ctx.fillRect(x + 98, y + 7, (width - 106) * cooldownRatio, 6);
+
+      ctx.fillStyle = "rgba(255,255,255,0.76)";
+      ctx.textAlign = "right";
+      ctx.fillText(boss.attackTimer <= 0.04 ? "READY" : `${boss.attackTimer.toFixed(1)}s`, x + width - 8, y + 24);
+      ctx.textAlign = "left";
+    }
+
     function drawBattleOverlay() {
       const speedPressure =
         Math.max(
@@ -7991,6 +8359,11 @@
           ctx.stroke();
         }
         ctx.restore();
+      }
+
+      if (game.screen === "battle") {
+        drawPlayerReadoutPanel();
+        drawBossReadoutPanel();
       }
 
       ctx.save();
